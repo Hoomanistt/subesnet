@@ -18,7 +18,7 @@ jobs:
           version: latest
 
       - name: Deploy Function
-        # The --workdir flag tells Supabase to look inside your subesnet-main folder
+        # Adding the --workdir flag tells the CLI to look inside your subesnet-main folder
         run: supabase functions deploy diagnostic-stream-tool --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt --workdir subesnet-main
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
