@@ -18,7 +18,7 @@ jobs:
           version: latest
 
       - name: Deploy Function
-        # Adding the --workdir flag tells the CLI to look inside your subesnet-main folder
-        run: supabase functions deploy diagnostic-stream-tool --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt --workdir subesnet-main
+        # This matches your specific folder nesting on GitHub
+        run: supabase functions deploy diagnostic-stream-tool --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt --workdir subesnet-main/subesnet-main
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
