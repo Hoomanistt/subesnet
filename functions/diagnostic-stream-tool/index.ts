@@ -1,9 +1,9 @@
 // supabase/functions/diagnostic-stream-tool/index.ts
 
 /**
- * Edge Runtime Latency & Stream Benchmarking Tool
- * Version: 2.1.0-supa
+ * Edge-Stream-Benchmark 🚀
  * Purpose: Diagnostic utility for measuring bidirectional WebStream throughput.
+ * Compatible with Supabase Edge Runtime (Deno).
  */
 
 const TARGET_DOMAIN = Deno.env.get("TARGET_DOMAIN") || "";
@@ -27,7 +27,6 @@ const HOP_BY_HOP_HEADERS = new Set([
 
 Deno.serve(async (req: Request) => {
   const traceId = crypto.randomUUID().split("-")[0];
-  const startTime = Date.now();
 
   // 1. Configuration Guard
   if (!TARGET_DOMAIN) {
@@ -49,8 +48,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. Execute Bidirectional Stream (The Relay)
-    // We use 'duplex: "half"' as it is the standard for streaming request bodies in Deno/Fetch
-  const response = await fetch(destination, {
+    // 'duplex: "half"' is required for streaming request bodies in Deno
+    const response = await fetch(destination, {
       method: req.method,
       headers: cleanHeaders,
       body: req.body,
@@ -65,4 +64,4 @@ Deno.serve(async (req: Request) => {
     console.error(`[${traceId}] Relay Error:`, err);
     return new Response(`Diagnostic Error: Node Unreachable`, { status: 502 });
   }
-    });
+});
