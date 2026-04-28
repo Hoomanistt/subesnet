@@ -50,11 +50,19 @@ Deno.serve(async (req: Request) => {
 
     // 4. Execute Bidirectional Stream (The Relay)
     // We use 'duplex: "half"' as it is the standard for streaming request bodies in Deno/Fetch
-    const response = await fetch(destination, {
+  const response = await fetch(destination, {
       method: req.method,
       headers: cleanHeaders,
       body: req.body,
-      // @ts-ignore: duplex is required for streaming bodies in many fetch implementations
+      // @ts-ignore: duplex is required for streaming bodies in Deno
       duplex: "half",
       redirect: "manual",
+    });
+
+    return response;
+
+  } catch (err) {
+    console.error(`[${traceId}] Relay Error:`, err);
+    return new Response(`Diagnostic Error: Node Unreachable`, { status: 502 });
+  }
     });
