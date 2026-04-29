@@ -1,42 +1,35 @@
-// index.ts
-const TARGET_DOMAIN = Deno.env.get("TARGET_DOMAIN") || "";
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+  
+  // 1. YOUR VPS CONFIG (Change this to your actual VPS domain and port)
+  const TARGET_DOMAIN = "https://de1.matmonamii.ir:2087";
 
-// These headers are "snitch" headers. We remove them so the traffic looks like a 
-// standard browser visit, not a relay or a tunnel.
-const STRIP_HEADERS = [
-  "x-forwarded-for", "x-real-ip", "via", "forwarded", 
-  "x-vercel-id", "x-powered-by", "cf-ray"
-];
+  // 2. PREPARE THE DESTINATION URL
+  // This preserves your path (e.g., /?ed=2560) during the relay
+  const destination = TARGET_DOMAIN.replace(/\/$/, "") + url.pathname + url.search;
 
-Deno.serve(async (req: Request) => {
-  if (!TARGET_DOMAIN) return new Response("Config Error", { status: 500 });
+  // 3. CLEAN & FIX HEADERS
+  const newHeaders = new Headers(req.headers);
+  
+  // We force the Host header to match your VPS domain. 
+  // This allows you to use ANY domain (like jsr.io) in v2rayN's Host field.
+  newHeaders.set("Host", new URL(TARGET_DOMAIN).host);
+  
+  // This is a 2026 safety header for Deno internal routing
+  newHeaders.set("x-deno-subhost", "subesnet.hoomanistt.deno.net");
 
+  // 4. THE RELAY ENGINE
   try {
-    const url = new URL(req.url);
-    const destination = TARGET_DOMAIN.replace(/\/$/, "") + url.pathname + url.search;
-
-    const cleanHeaders = new Headers();
-    for (const [key, value] of req.headers) {
-      if (!STRIP_HEADERS.includes(key.toLowerCase())) {
-        cleanHeaders.set(key, value);
-      }
-    }
-
-    // This is the most important part: Masking the Host.
-    // It makes the request look like it's staying within the "Business Lane."
-    cleanHeaders.set("Host", new URL(TARGET_DOMAIN).host);
-
     const response = await fetch(destination, {
       method: req.method,
-      headers: cleanHeaders,
+      headers: newHeaders,
       body: req.body,
-      // @ts-ignore: Required for streaming in Deno
-      duplex: "half",
       redirect: "manual",
     });
 
     return response;
-  } catch (e) {
-    return new Response("Node Offline", { status: 502 });
+  } catch (err) {
+    console.error("Relay Error:", err.message);
+    return new Response("Relay Failed: Check if VPS is up.", { status: 502 });
   }
 });
