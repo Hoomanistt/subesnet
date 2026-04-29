@@ -16,9 +16,9 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
-
-      - name: Deploy Function
         # This matches your specific folder nesting on GitHub
-        run: supabase functions deploy diagnostic-stream-tool --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt --workdir subesnet-main/subesnet-main
+      - name: Deploy Function
+        # We removed the extra subfolders since 'supabase' is now at your root
+        run: supabase functions deploy diagnostic-stream-tool --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
