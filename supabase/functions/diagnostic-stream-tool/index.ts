@@ -1,39 +1,80 @@
-Deno.serve(async (req) => {
-  const url = new URL(req.url);
-  
-  // 1. SETTINGS - Replace with your real VPS details
-  const TARGET_DOMAIN = "https://de1.matmonamii.ir:2087"; 
-  const SECRET_HEADER_NAME = "x-deno-subhost"; // The "Secret Handshake"
-  const SECRET_VALUE = "subesnet.hoomanistt.deno.net"; // Your Project ID
+/**
+ * Deno Port of vercel-xhttp-relay
+ * Optimized for Deno Deploy 2026
+ */
 
-  // 2. CHECK THE HANDSHAKE
-  // If the secret header isn't there, show a fake "Under Construction" page.
-  // This fools anyone (or any bot) trying to browse your Deno URL directly.
-  if (req.headers.get(SECRET_HEADER_NAME) !== SECRET_VALUE) {
-    return new Response("<html><body><h1>404 Not Found</h1></body></html>", {
-      status: 404,
-      headers: { "content-type": "text/html" },
-    });
+// 1. Cache TARGET_DOMAIN at cold start for speed
+const TARGET_BASE = (Deno.env.get("TARGET_DOMAIN") || "").replace(/\/$/, "");
+
+const STRIP_HEADERS = new Set([
+  "host",
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "forwarded",
+  "x-forwarded-host",
+  "x-forwarded-proto",
+  "x-forwarded-port",
+]);
+
+Deno.serve(async (req: Request) => {
+  if (!TARGET_BASE) {
+    return new Response("Misconfigured: TARGET_DOMAIN is not set", { status: 500 });
   }
 
-  // 3. EXECUTE THE RELAY
-  const newHeaders = new Headers(req.headers);
-  
-  // Clean the headers for your VPS
-  newHeaders.set("Host", new URL(TARGET_DOMAIN).host);
-  
-  // Optional: Remove the secret header before sending to VPS so X-UI doesn't get confused
-  newHeaders.delete(SECRET_HEADER_NAME);
-
   try {
-    const destination = TARGET_DOMAIN + url.pathname + url.search;
-    return await fetch(destination, {
-      method: req.method,
-      headers: newHeaders,
-      body: req.body,
+    // 2. High-speed path extraction (Matches your Vercel logic)
+    const pathStart = req.url.indexOf("/", 8);
+    const targetUrl = pathStart === -1 
+      ? TARGET_BASE + "/" 
+      : TARGET_BASE + req.url.slice(pathStart);
+
+    // 3. Single-pass Header Filtering
+    const out = new Headers();
+    let clientIp = null;
+
+    for (const [k, v] of req.headers) {
+      const lowerK = k.toLowerCase();
+      
+      if (STRIP_HEADERS.has(lowerK)) continue;
+      if (lowerK.startsWith("x-vercel-") || lowerK.startsWith("x-deno-")) continue;
+      
+      if (lowerK === "x-real-ip") {
+        clientIp = v;
+        continue;
+      }
+      if (lowerK === "x-forwarded-for") {
+        if (!clientIp) clientIp = v.split(',')[0].trim();
+        continue;
+      }
+      out.set(k, v);
+    }
+    
+    if (clientIp) out.set("x-forwarded-for", clientIp);
+    
+    // CRITICAL: Deno needs the Host header set to the VPS domain to route correctly
+    out.set("Host", new URL(TARGET_BASE).host);
+
+    // 4. True Bidirectional Streaming
+    const method = req.method;
+    const hasBody = method !== "GET" && method !== "HEAD";
+
+    return await fetch(targetUrl, {
+      method,
+      headers: out,
+      body: hasBody ? req.body : undefined,
+      // @ts-ignore: duplex is essential for XHTTP streaming
+      duplex: "half",
       redirect: "manual",
     });
+
   } catch (err) {
-    return new Response("Gateway Error", { status: 502 });
+    console.error("Relay error:", err);
+    return new Response("Bad Gateway: Tunnel Failed", { status: 502 });
   }
 });
